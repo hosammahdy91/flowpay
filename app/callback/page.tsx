@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect } from "react";
 import { setCookie, getCookie } from "cookies-next";
 
@@ -7,33 +8,36 @@ export default function Callback() {
     (async () => {
       try {
         const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+
         const dt = (getCookie("deviceToken") as string) || "";
         const dk = (getCookie("deviceKey") as string) || "";
+        const appId = process.env.NEXT_PUBLIC_CIRCLE_APP_ID as string;
+        const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string;
+        const callbackUrl = "https://flowpay-bay.vercel.app/callback";
 
         new W3SSdk(
           {
-            appSettings: {
-              appId: process.env.NEXT_PUBLIC_CIRCLE_APP_ID as string,
-            },
+            appSettings: { appId },
             loginConfigs: {
               deviceToken: dt,
               deviceEncryptionKey: dk,
               google: {
-                clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string,
-                redirectUri: "https://flowpay-bay.vercel.app/callback",
+                clientId: googleClientId,
+                redirectUri: callbackUrl,
                 selectAccountPrompt: true,
               },
             },
           },
           (err: unknown, res: any) => {
             if (!err && res?.userToken) {
-              setCookie("ut", res.userToken);
-              setCookie("ek", res.encryptionKey);
+              setCookie("ut", res.userToken, { maxAge: 60 * 60 * 24 });
+              setCookie("ek", res.encryptionKey, { maxAge: 60 * 60 * 24 });
             }
             window.location.href = "/";
           }
         );
-      } catch {
+      } catch (e) {
+        console.error("Callback error:", e);
         window.location.href = "/";
       }
     })();
@@ -47,7 +51,6 @@ export default function Callback() {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      fontFamily: "DM Sans, sans-serif",
       gap: 16,
     }}>
       <div style={{
@@ -58,7 +61,9 @@ export default function Callback() {
         borderRadius: "50%",
         animation: "spin 0.7s linear infinite",
       }} />
-      <p style={{ color: "#888880", fontSize: 14 }}>Completing sign-in...</p>
+      <p style={{ color: "#888880", fontSize: 14, fontFamily: "sans-serif" }}>
+        Completing sign-in...
+      </p>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
