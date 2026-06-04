@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { setCookie, getCookie } from "cookies-next";
 import { SocialLoginProvider } from "@circle-fin/w3s-pw-web-sdk/dist/src/types";
 import type { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
@@ -35,6 +35,9 @@ export default function FlowPay() {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [toast, setToast] = useState("");
   const [copied, setCopied] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const scannerRef = React.useRef<any>(null);
 
   const msg = (s: string, t: Status = "idle") => { setStatus(s); setStatusType(t); };
   const pop = (s: string) => { setToast(s); setTimeout(() => setToast(""), 3000); };
@@ -45,6 +48,33 @@ export default function FlowPay() {
       document.cookie = c.replace(/^ +/, "").replace(/=.*/, `=;expires=${new Date(0).toUTCString()};path=/`);
     });
     window.location.reload();
+  };
+
+  // ── QR Scanner ──
+  const startScanner = async () => {
+    setScanning(true);
+    try {
+      const { BrowserQRCodeReader } = await import("@zxing/library");
+      const codeReader = new BrowserQRCodeReader();
+      scannerRef.current = codeReader;
+      const videoInputDevices = await codeReader.listVideoInputDevices();
+      const deviceId = videoInputDevices[0]?.deviceId;
+      await codeReader.decodeFromVideoDevice(deviceId, videoRef.current!, (result, err) => {
+        if (result) {
+          setToAddr(result.getText());
+          stopScanner();
+          pop("✓ Address scanned!");
+        }
+      });
+    } catch { setScanning(false); pop("Camera not available"); }
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.reset();
+      scannerRef.current = null;
+    }
+    setScanning(false);
   };
 
   // ── Init SDK ──
@@ -393,7 +423,23 @@ export default function FlowPay() {
                 <p className="card-title">Send USDC</p>
                 <div className="field">
                   <label className="field-label">Recipient address</label>
-                  <input className="input input-mono" placeholder="0x..." value={toAddr} onChange={e => setToAddr(e.target.value)} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input className="input input-mono" placeholder="0x..." value={toAddr} onChange={e => setToAddr(e.target.value)} style={{ flex: 1 }} />
+                    <button
+                      onClick={scanning ? stopScanner : startScanner}
+                      style={{ flexShrink: 0, padding: "0 14px", background: scanning ? "var(--red-light)" : "var(--accent-light)", border: "1px solid " + (scanning ? "rgba(230,57,70,0.3)" : "rgba(0,82,255,0.2)"), borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: 18, color: scanning ? "var(--red)" : "var(--accent)", transition: "all 0.15s" }}
+                      title={scanning ? "Stop scanning" : "Scan QR code"}
+                    >
+                      {scanning ? "✕" : "⌗"}
+                    </button>
+                  </div>
+                  {scanning && (
+                    <div style={{ marginTop: 12, borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)", position: "relative" }}>
+                      <video ref={videoRef} style={{ width: "100%", display: "block", maxHeight: 200, objectFit: "cover" }} autoPlay muted playsInline />
+                      <div style={{ position: "absolute", inset: 0, border: "2px solid var(--accent)", borderRadius: 12, pointerEvents: "none" }} />
+                      <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-muted)", padding: "8px", background: "var(--bg2)" }}>Point camera at QR code</p>
+                    </div>
+                  )}
                 </div>
                 <div className="field">
                   <label className="field-label">Amount</label>
