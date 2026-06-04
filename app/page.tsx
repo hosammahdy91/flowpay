@@ -7,7 +7,7 @@ import type { W3SSdk } from "@circle-fin/w3s-pw-web-sdk";
 
 const APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID as string;
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000") + "/callback";
 
 type Session = { userToken: string; encryptionKey: string };
 type Wallet = { id: string; address: string; blockchain: string };
@@ -80,7 +80,18 @@ export default function FlowPay() {
         );
 
         sdk.current = instance;
-        if (!dead) setStage("device");
+        if (!dead) {
+          // استعادة session بعد redirect من Google
+          const savedUt = getCookie("ut") as string;
+          const savedEk = getCookie("ek") as string;
+          if (savedUt && savedEk) {
+            setSession({ userToken: savedUt, encryptionKey: savedEk });
+            setStage("session");
+            msg("Session restored. Continue setup.", "success");
+          } else {
+            setStage("device");
+          }
+        }
       } catch { if (!dead) msg("Failed to load SDK", "error"); }
     })();
     return () => { dead = true; };
@@ -176,8 +187,13 @@ export default function FlowPay() {
         google: { clientId: GOOGLE_CLIENT_ID, redirectUri: APP_URL, selectAccountPrompt: true },
       },
     });
-    msg("Redirecting to Google...", "loading");
-    sdk.current.performLogin(SocialLoginProvider.GOOGLE);
+    msg("Opening Google sign-in...", "loading");
+    try {
+      // محاولة استخدام popup بدل redirect
+      (sdk.current as any).performLogin(SocialLoginProvider.GOOGLE, { mode: "popup" });
+    } catch {
+      sdk.current!.performLogin(SocialLoginProvider.GOOGLE);
+    }
   };
 
   // ── Step 3: Initialize User ──
@@ -402,11 +418,17 @@ export default function FlowPay() {
             {tab === "receive" && (
               <div className="card">
                 <p className="card-title">Receive USDC</p>
-                <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.6 }}>
-                  Share your address to receive USDC on Arc Testnet.
+                <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
+                  Scan the QR code or share your address to receive USDC.
                 </p>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "20px 0" }}>
+                  <div style={{ background: "white", padding: 16, borderRadius: 16, border: "1px solid var(--border)", boxShadow: "var(--shadow)" }}>
+                    <img src={"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(wallet.address) + "&bgcolor=ffffff&color=0d0d0d&margin=0"} alt="QR Code" width={180} height={180} style={{ display: "block", borderRadius: 4 }} />
+                  </div>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textAlign: "center" }}>{wallet.address.slice(0, 10)}...{wallet.address.slice(-8)}</p>
+                </div>
                 <div className="field">
-                  <label className="field-label">Your wallet address</label>
+                  <label className="field-label">Full wallet address</label>
                   <div className="addr-chip" onClick={copyAddr} style={{ background: "var(--bg3)", color: "var(--text-muted)", borderColor: "var(--border)" }}>
                     <span className="addr-text">{wallet.address}</span>
                     <span className="copy-btn">{copied ? "✓" : "⎘"}</span>
