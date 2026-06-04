@@ -58,7 +58,13 @@ export default function FlowPay() {
       const codeReader = new BrowserQRCodeReader();
       scannerRef.current = codeReader;
       const videoInputDevices = await codeReader.listVideoInputDevices();
-      const deviceId = videoInputDevices[0]?.deviceId;
+      // الكاميرا الخلفية أولاً
+      const backCamera = videoInputDevices.find(d =>
+        d.label.toLowerCase().includes("back") ||
+        d.label.toLowerCase().includes("rear") ||
+        d.label.toLowerCase().includes("environment")
+      );
+      const deviceId = backCamera?.deviceId || videoInputDevices[videoInputDevices.length - 1]?.deviceId;
       await codeReader.decodeFromVideoDevice(deviceId, videoRef.current!, (result, err) => {
         if (result) {
           setToAddr(result.getText());
