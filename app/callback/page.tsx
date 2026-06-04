@@ -1,5 +1,4 @@
 "use client";
-import { QRCodeSVG } from "qrcode.react";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { setCookie, getCookie } from "cookies-next";
@@ -423,7 +422,7 @@ export default function FlowPay() {
                   Scan the QR code or share your address to receive USDC.
                 </p>
 
-                {/* QR Code */}
+                {/* QR Code via Google Charts API */}
                 <div style={{
                   display: "flex",
                   flexDirection: "column",
@@ -438,13 +437,12 @@ export default function FlowPay() {
                     border: "1px solid var(--border)",
                     boxShadow: "var(--shadow)",
                   }}>
-                    <QRCodeSVG
-                      value={wallet.address}
-                      size={180}
-                      bgColor="#ffffff"
-                      fgColor="#0d0d0d"
-                      level="M"
-                      includeMargin={false}
+                    <img
+                      src={}
+                      alt="QR Code"
+                      width={180}
+                      height={180}
+                      style={{ display: "block", borderRadius: 4 }}
                     />
                   </div>
                   <p style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)", textAlign: "center" }}>
