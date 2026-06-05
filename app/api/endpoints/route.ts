@@ -52,6 +52,8 @@ export async function POST(request: Request) {
       case "sendUsdc": {
         const tokenAddress = p.currency === "EURC"
           ? "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"
+          : p.currency === "cirBTC"
+          ? "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF"
           : "0x3600000000000000000000000000000000000000";
 
         const payload: any = {

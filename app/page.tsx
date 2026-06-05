@@ -13,6 +13,7 @@ type Session = { userToken: string; encryptionKey: string };
 type Wallet = { id: string; address: string; blockchain: string };
 type Status = "idle" | "loading" | "success" | "error";
 type Tab = "send" | "receive" | "history";
+type Currency = "USDC" | "EURC" | "cirBTC";
 type Tx = { type: "send" | "receive"; addr: string; amount: string };
 type Stage = "boot" | "device" | "login" | "session" | "challenge" | "ready";
 
@@ -28,8 +29,9 @@ export default function FlowPay() {
   const [balance, setBalance] = useState("0.00");
   const [tab, setTab] = useState<Tab>("send");
   const [toAddr, setToAddr] = useState("");
-  const [currency, setCurrency] = useState<"USDC" | "EURC">("USDC");
+  const [currency, setCurrency] = useState<"USDC" | "EURC" | "cirBTC">("USDC");
   const [eurcBalance, setEurcBalance] = useState("0.00");
+  const [cirbtcBalance, setCirbtcBalance] = useState("0.00000000");
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
@@ -161,8 +163,10 @@ export default function FlowPay() {
     const tokens = (d.tokenBalances as any[]) || [];
     const usdc = tokens.find(t => t.token?.symbol?.startsWith("USDC") || t.token?.name?.includes("USDC"));
     const eurc = tokens.find(t => t.token?.symbol?.startsWith("EURC") || t.token?.name?.includes("EURC"));
+    const cirbtc = tokens.find(t => t.token?.symbol?.startsWith("cirBTC") || t.token?.name?.includes("cirBTC"));
     setBalance(usdc?.amount ?? "0.00");
     setEurcBalance(eurc?.amount ?? "0.00");
+    setCirbtcBalance(cirbtc?.amount ?? "0.00000000");
   }, []);
 
   // ── Load wallets ──
@@ -409,7 +413,9 @@ export default function FlowPay() {
             <div className="balance-card">
               <p className="balance-label">Your balance</p>
               <div className="balance-amount">
-                {parseFloat(currency === "USDC" ? balance : eurcBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {currency === "cirBTC"
+                  ? parseFloat(cirbtcBalance).toFixed(6)
+                  : parseFloat(currency === "USDC" ? balance : eurcBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="balance-currency">
                 <div className="live-dot" /> Arc Testnet
@@ -426,6 +432,12 @@ export default function FlowPay() {
                   style={{ flex: 1, padding: "8px", borderRadius: 10, border: "1px solid " + (currency === "EURC" ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"), background: currency === "EURC" ? "rgba(255,255,255,0.15)" : "transparent", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 500 }}
                 >
                   EURC · {parseFloat(eurcBalance).toFixed(2)}
+                </button>
+                <button
+                  onClick={() => setCurrency("cirBTC")}
+                  style={{ flex: 1, padding: "8px", borderRadius: 10, border: "1px solid " + (currency === "cirBTC" ? "rgba(255,181,0,0.5)" : "rgba(255,255,255,0.1)"), background: currency === "cirBTC" ? "rgba(255,181,0,0.2)" : "transparent", color: currency === "cirBTC" ? "#ffb500" : "white", cursor: "pointer", fontSize: 11, fontWeight: 500 }}
+                >
+                  cirBTC · {parseFloat(cirbtcBalance).toFixed(6)}
                 </button>
               </div>
               <div className="addr-chip" onClick={copyAddr}>
