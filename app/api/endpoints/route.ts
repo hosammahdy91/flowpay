@@ -50,13 +50,17 @@ export async function POST(request: Request) {
       }
 
       case "sendUsdc": {
+        const tokenAddress = p.currency === "EURC"
+          ? "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"
+          : "0x3600000000000000000000000000000000000000";
+
         const payload: any = {
           idempotencyKey: crypto.randomUUID(),
           walletId: p.walletId,
           destinationAddress: p.destinationAddress,
           amounts: [String(p.amount)],
           feeLevel: "MEDIUM",
-          tokenAddress: "0x3600000000000000000000000000000000000000",
+          tokenAddress,
           blockchain: "ARC-TESTNET",
         };
         console.log("Transfer payload:", JSON.stringify(payload));

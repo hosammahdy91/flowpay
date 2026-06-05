@@ -28,6 +28,8 @@ export default function FlowPay() {
   const [balance, setBalance] = useState("0.00");
   const [tab, setTab] = useState<Tab>("send");
   const [toAddr, setToAddr] = useState("");
+  const [currency, setCurrency] = useState<"USDC" | "EURC">("USDC");
+  const [eurcBalance, setEurcBalance] = useState("0.00");
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
@@ -156,10 +158,11 @@ export default function FlowPay() {
     });
     const d = await r.json();
     if (!r.ok) return;
-    const usdc = ((d.tokenBalances as any[]) || []).find(
-      t => t.token?.symbol?.startsWith("USDC") || t.token?.name?.includes("USDC")
-    );
+    const tokens = (d.tokenBalances as any[]) || [];
+    const usdc = tokens.find(t => t.token?.symbol?.startsWith("USDC") || t.token?.name?.includes("USDC"));
+    const eurc = tokens.find(t => t.token?.symbol?.startsWith("EURC") || t.token?.name?.includes("EURC"));
     setBalance(usdc?.amount ?? "0.00");
+    setEurcBalance(eurc?.amount ?? "0.00");
   }, []);
 
   // ── Load wallets ──
@@ -283,6 +286,7 @@ export default function FlowPay() {
         walletId: wallet.id,
         destinationAddress: toAddr,
         amount,
+        currency,
       }),
     });
     const d = await r.json();
@@ -292,7 +296,7 @@ export default function FlowPay() {
     sdk.current.setAuthentication({ userToken: session.userToken, encryptionKey: session.encryptionKey });
     sdk.current.execute(d.challengeId, async (err) => {
       if (err) { msg("Signing failed: " + ((err as any)?.message ?? ""), "error"); setSending(false); return; }
-      setTxs(p => [{ type: "send", addr: toAddr, amount }, ...p]);
+      setTxs(p => [{ type: "send", addr: toAddr, amount: amount + " " + currency }, ...p]);
       setToAddr(""); setAmount("");
       pop("✓ Transfer complete!");
       msg("Transfer successful ✓", "success");
@@ -405,10 +409,24 @@ export default function FlowPay() {
             <div className="balance-card">
               <p className="balance-label">Your balance</p>
               <div className="balance-amount">
-                {parseFloat(balance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {parseFloat(currency === "USDC" ? balance : eurcBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="balance-currency">
-                <div className="live-dot" /> USDC · Arc Testnet
+                <div className="live-dot" /> Arc Testnet
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12, position: "relative", zIndex: 1 }}>
+                <button
+                  onClick={() => setCurrency("USDC")}
+                  style={{ flex: 1, padding: "8px", borderRadius: 10, border: "1px solid " + (currency === "USDC" ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"), background: currency === "USDC" ? "rgba(255,255,255,0.15)" : "transparent", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 500 }}
+                >
+                  USDC · {parseFloat(balance).toFixed(2)}
+                </button>
+                <button
+                  onClick={() => setCurrency("EURC")}
+                  style={{ flex: 1, padding: "8px", borderRadius: 10, border: "1px solid " + (currency === "EURC" ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"), background: currency === "EURC" ? "rgba(255,255,255,0.15)" : "transparent", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 500 }}
+                >
+                  EURC · {parseFloat(eurcBalance).toFixed(2)}
+                </button>
               </div>
               <div className="addr-chip" onClick={copyAddr}>
                 <span className="addr-text">{wallet.address}</span>
@@ -450,12 +468,12 @@ export default function FlowPay() {
                 <div className="field">
                   <label className="field-label">Amount</label>
                   <div className="amount-wrap">
-                    <span className="amount-prefix">USDC</span>
+                    <span className="amount-prefix">{currency}</span>
                     <input className="input" type="number" placeholder="0.00" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
                   </div>
                 </div>
                 <button className="btn btn-primary" onClick={sendUsdc} disabled={sending || !toAddr || !amount}>
-                  {sending ? <><div className="spinner" /> Sending...</> : `Send ${amount || "0"} USDC →`}
+                  {sending ? <><div className="spinner" /> Sending...</> : `Send ${amount || "0"} ${currency} →`}
                 </button>
                 {status && (
                   <div className="status">
