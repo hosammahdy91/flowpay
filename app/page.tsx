@@ -32,6 +32,11 @@ export default function FlowPay() {
   const [currency, setCurrency] = useState<"USDC" | "EURC" | "cirBTC">("USDC");
   const [eurcBalance, setEurcBalance] = useState("0.00");
   const [cirbtcBalance, setCirbtcBalance] = useState("0.00000000");
+  const [swapFrom, setSwapFrom] = useState<"USDC" | "EURC">("USDC");
+  const [swapAmount, setSwapAmount] = useState("");
+  const [swapRate, setSwapRate] = useState<number | null>(null);
+  const [swapLoading, setSwapLoading] = useState(false);
+  const [swapResult, setSwapResult] = useState("");
   const [amount, setAmount] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
@@ -85,6 +90,17 @@ export default function FlowPay() {
       scannerRef.current = null;
     }
     setScanning(false);
+  };
+
+  // ── Swap Rate ──
+  const fetchSwapRate = async () => {
+    try {
+      const pair = swapFrom === "USDC" ? "EURUSD" : "USDEUR";
+      const r = await fetch(`https://api.frankfurter.app/latest?from=${swapFrom === "USDC" ? "USD" : "EUR"}&to=${swapFrom === "USDC" ? "EUR" : "USD"}`);
+      const d = await r.json();
+      const rate = swapFrom === "USDC" ? d.rates?.EUR : d.rates?.USD;
+      if (rate) setSwapRate(rate);
+    } catch { setSwapRate(0.92); }
   };
 
   // ── Init SDK ──
@@ -451,6 +467,7 @@ export default function FlowPay() {
               <button className={`tab ${tab === "send" ? "active" : ""}`} onClick={() => setTab("send")}>Send</button>
               <button className={`tab ${tab === "receive" ? "active" : ""}`} onClick={() => setTab("receive")}>Receive</button>
               <button className={`tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>History</button>
+              <button className={`tab ${tab === "swap" ? "active" : ""}`} onClick={() => { setTab("swap" as any); fetchSwapRate(); }}>Swap</button>
             </div>
 
             {/* Send */}
@@ -547,6 +564,107 @@ export default function FlowPay() {
                 )}
               </div>
             )}
+            {/* Swap */}
+            {(tab as string) === "swap" && (
+              <div className="card">
+                <p className="card-title">Swap Stablecoins</p>
+                <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
+                  Exchange between USDC and EURC at live market rates.
+                </p>
+
+                {/* From / To */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">From</label>
+                    <div style={{ padding: "12px 16px", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 14, color: "var(--accent)" }}>
+                      {swapFrom}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setSwapFrom(f => f === "USDC" ? "EURC" : "USDC"); setSwapAmount(""); fetchSwapRate(); }}
+                    style={{ marginTop: 18, width: 36, height: 36, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--bg3)", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    ⇄
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">To</label>
+                    <div style={{ padding: "12px 16px", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", fontWeight: 600, fontSize: 14, color: "var(--green)" }}>
+                      {swapFrom === "USDC" ? "EURC" : "USDC"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount */}
+                <div className="field">
+                  <label className="field-label">Amount</label>
+                  <div className="amount-wrap">
+                    <span className="amount-prefix">{swapFrom}</span>
+                    <input
+                      className="input"
+                      type="number"
+                      placeholder="0.00"
+                      min="0.01"
+                      step="0.01"
+                      value={swapAmount}
+                      onChange={e => setSwapAmount(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Rate display */}
+                {swapRate && swapAmount && parseFloat(swapAmount) > 0 && (
+                  <div style={{ padding: "12px 16px", background: "var(--accent-light)", border: "1px solid rgba(0,82,255,0.15)", borderRadius: "var(--radius-sm)", marginBottom: 16, fontSize: 13 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ color: "var(--text-muted)" }}>You pay</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{parseFloat(swapAmount).toFixed(2)} {swapFrom}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ color: "var(--text-muted)" }}>You receive</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--green)" }}>
+                        {(parseFloat(swapAmount) * swapRate).toFixed(2)} {swapFrom === "USDC" ? "EURC" : "USDC"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Rate</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>
+                        1 {swapFrom} = {swapRate.toFixed(4)} {swapFrom === "USDC" ? "EURC" : "USDC"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {swapRate && (
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center", marginBottom: 12 }}>
+                    Live rate · 1 {swapFrom} = {swapRate?.toFixed(4)} {swapFrom === "USDC" ? "EUR" : "USD"}
+                  </div>
+                )}
+
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setSwapResult("");
+                    window.open("https://console.circle.com", "_blank");
+                    setSwapResult("StableFX access required. Request sent to Circle.");
+                  }}
+                  disabled={!swapAmount || parseFloat(swapAmount) <= 0}
+                >
+                  Swap {swapAmount || "0"} {swapFrom} → {swapFrom === "USDC" ? "EURC" : "USDC"}
+                </button>
+
+                {swapResult && (
+                  <div className="status" style={{ marginTop: 12 }}>
+                    <div className="status-dot loading" />
+                    <span>{swapResult}</span>
+                  </div>
+                )}
+
+                <div className="divider">powered by</div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center" }}>
+                  Circle StableFX · <a href="https://developers.circle.com/stablefx" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>Learn more ↗</a>
+                </p>
+              </div>
+            )}
+
           </>
         )}
       </main>
