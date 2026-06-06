@@ -92,6 +92,37 @@ export default function FlowPay() {
     setScanning(false);
   };
 
+  // ── Execute Swap ──
+  const executeSwap = async () => {
+    if (!session || !wallet || !swapAmount) return;
+    setSwapLoading(true);
+    setSwapResult("");
+    try {
+      const r = await fetch("/api/endpoints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "swapKit",
+          userToken: session.userToken,
+          walletId: wallet.id,
+          fromToken: swapFrom,
+          toToken: swapFrom === "USDC" ? "EURC" : "USDC",
+          amount: swapAmount,
+          privateKey: wallet.id,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setSwapResult("Swap failed: " + (d.message || d.error)); setSwapLoading(false); return; }
+      setSwapResult("Swap submitted successfully!");
+      setSwapAmount("");
+      pop("Swap complete!");
+      setTimeout(() => loadBalance(session!.userToken, wallet!.id), 5000);
+    } catch (e: any) {
+      setSwapResult("Error: " + e.message);
+    }
+    setSwapLoading(false);
+  };
+
   // ── Swap Rate ──
   const fetchSwapRate = async () => {
     try {
@@ -641,14 +672,12 @@ export default function FlowPay() {
 
                 <button
                   className="btn btn-primary"
-                  onClick={() => {
-                    setSwapResult("");
-                    window.open("https://console.circle.com", "_blank");
-                    setSwapResult("StableFX access required. Request sent to Circle.");
-                  }}
-                  disabled={!swapAmount || parseFloat(swapAmount) <= 0}
+                  onClick={executeSwap}
+                  disabled={swapLoading || !swapAmount || parseFloat(swapAmount) <= 0}
                 >
-                  Swap {swapAmount || "0"} {swapFrom} → {swapFrom === "USDC" ? "EURC" : "USDC"}
+                  {swapLoading
+                    ? <><div className="spinner" /> Swapping...</>
+                    : `Swap ${swapAmount || "0"} ${swapFrom} → ${swapFrom === "USDC" ? "EURC" : "USDC"}`}
                 </button>
 
                 {swapResult && (
