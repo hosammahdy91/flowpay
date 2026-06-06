@@ -92,33 +92,37 @@ export default function FlowPay() {
     setScanning(false);
   };
 
-  // ── Execute Swap ──
+  // ── Execute Swap via Arc DEX ──
   const executeSwap = async () => {
-    if (!session || !wallet || !swapAmount) return;
+    if (!swapAmount || !wallet) return;
     setSwapLoading(true);
     setSwapResult("");
     try {
+      // جلب quote من API
       const r = await fetch("/api/endpoints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "swapKit",
-          userToken: session.userToken,
-          walletId: wallet.id,
+          action: "swapQuote",
           fromToken: swapFrom,
           toToken: swapFrom === "USDC" ? "EURC" : "USDC",
           amount: swapAmount,
-          privateKey: wallet.id,
         }),
       });
-      const d = await r.json();
-      if (!r.ok) { setSwapResult("Swap failed: " + (d.message || d.error)); setSwapLoading(false); return; }
-      setSwapResult("Swap submitted successfully!");
-      setSwapAmount("");
-      pop("Swap complete!");
-      setTimeout(() => loadBalance(session!.userToken, wallet!.id), 5000);
-    } catch (e: any) {
-      setSwapResult("Error: " + e.message);
+      const quote = await r.json();
+
+      // بناء رابط Arc DEX مع البيانات المملوءة مسبقاً
+      const arcDexUrl = `https://app.arc.network/swap?` +
+        `tokenIn=${swapFrom}` +
+        `&tokenOut=${swapFrom === "USDC" ? "EURC" : "USDC"}` +
+        `&amount=${swapAmount}` +
+        `&wallet=${wallet.address}` +
+        `&chain=ARC_TESTNET`;
+
+      window.open(arcDexUrl, "_blank");
+      setSwapResult(`Quote: ${swapAmount} ${swapFrom} → ~${quote.outputAmount} ${swapFrom === "USDC" ? "EURC" : "USDC"} · Redirecting to Arc DEX...`);
+    } catch {
+      setSwapResult("Could not fetch quote. Try again.");
     }
     setSwapLoading(false);
   };
@@ -677,7 +681,7 @@ export default function FlowPay() {
                 >
                   {swapLoading
                     ? <><div className="spinner" /> Swapping...</>
-                    : `Swap ${swapAmount || "0"} ${swapFrom} → ${swapFrom === "USDC" ? "EURC" : "USDC"}`}
+                    : `Get Quote & Swap ${swapAmount || "0"} ${swapFrom} → ${swapFrom === "USDC" ? "EURC" : "USDC"}`}
                 </button>
 
                 {swapResult && (
@@ -689,7 +693,7 @@ export default function FlowPay() {
 
                 <div className="divider">powered by</div>
                 <p style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "center" }}>
-                  Circle StableFX · <a href="https://developers.circle.com/stablefx" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>Learn more ↗</a>
+                  Arc DEX · <a href="https://app.arc.network/swap" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>Open Arc DEX ↗</a>
                 </p>
               </div>
             )}
