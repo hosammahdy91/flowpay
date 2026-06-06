@@ -12,7 +12,7 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000") + "
 type Session = { userToken: string; encryptionKey: string };
 type Wallet = { id: string; address: string; blockchain: string };
 type Status = "idle" | "loading" | "success" | "error";
-type Tab = "send" | "receive" | "history";
+type Tab = "send" | "receive" | "history" | "swap";
 type Currency = "USDC" | "EURC" | "cirBTC";
 type Tx = { type: "send" | "receive"; addr: string; amount: string };
 type Stage = "boot" | "device" | "login" | "session" | "challenge" | "ready";
@@ -467,7 +467,7 @@ export default function FlowPay() {
               <button className={`tab ${tab === "send" ? "active" : ""}`} onClick={() => setTab("send")}>Send</button>
               <button className={`tab ${tab === "receive" ? "active" : ""}`} onClick={() => setTab("receive")}>Receive</button>
               <button className={`tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>History</button>
-              <button className={`tab ${tab === "swap" ? "active" : ""}`} onClick={() => { setTab("swap" as any); fetchSwapRate(); }}>Swap</button>
+              <button className={`tab ${tab === "swap" ? "active" : ""}`} onClick={() => { setTab("swap"); fetchSwapRate(); }}>Swap</button>
             </div>
 
             {/* Send */}
@@ -565,7 +565,7 @@ export default function FlowPay() {
               </div>
             )}
             {/* Swap */}
-            {(tab as string) === "swap" && (
+            {tab === "swap" && (
               <div className="card">
                 <p className="card-title">Swap Stablecoins</p>
                 <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
