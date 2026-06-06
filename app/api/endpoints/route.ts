@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { SwapKit } from "@circle-fin/swap-kit";
+import { createViemAdapterFromPrivateKey } from "@circle-fin/adapter-viem-v2";
+import { createPublicClient, http } from "viem";
 
 const BASE = "https://api.circle.com";
 const KEY = process.env.CIRCLE_API_KEY as string;
@@ -74,6 +77,30 @@ export async function POST(request: Request) {
         const d = await r.json();
         if (!r.ok) { console.log("Transfer error:", JSON.stringify(d)); return NextResponse.json(d, { status: r.status }); }
         return NextResponse.json(d.data);
+      }
+
+      case "swapKit": {
+        const { fromToken, toToken, amount, privateKey } = p;
+        try {
+          const adapter = createViemAdapterFromPrivateKey({
+            privateKey: privateKey as string,
+            getPublicClient: ({ chain }) => createPublicClient({
+              chain,
+              transport: http("https://rpc.testnet.arc.network"),
+            }),
+          });
+          const kit = new SwapKit();
+          const result = await kit.swap({
+            from: { adapter, chain: "Arc_Testnet" },
+            tokenIn: fromToken,
+            tokenOut: toToken,
+            amountIn: amount,
+            config: { kitKey: process.env.KIT_KEY as string },
+          });
+          return NextResponse.json({ success: true, result });
+        } catch (e: any) {
+          return NextResponse.json({ error: e.message }, { status: 500 });
+        }
       }
 
       default:
